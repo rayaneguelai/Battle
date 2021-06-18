@@ -1,6 +1,7 @@
 import pygame
 import random
 import button
+from pygame import mixer
 
 pygame.init()
 
@@ -14,6 +15,14 @@ screen_height = 400 + bottom_panel
 
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('Battle')
+# Title and Icon
+pygame.display.set_caption("    ▬▬ι═══════>         ▂▃▅▇█▓▒░۩۞۩      Tales  Of  Swan       ۩۞۩░▒▓█▇▅▃▂       <═══════ι▬▬      ")
+icon = pygame.image.load('img/music/sword.png')
+pygame.display.set_icon(icon)
+
+# Sounds & Background Music
+mixer.music.load('img/music/medieval.ogg')
+mixer.music.play(-1)
 
 
 #define game variables
@@ -75,7 +84,7 @@ def draw_panel():
 
 
 #fighter class
-class Fighter():
+class Fighter(pygame.sprite.Sprite):
 	def __init__(self, x, y, name, max_hp, strength, potions):
 		self.name = name
 		self.max_hp = max_hp
@@ -88,6 +97,7 @@ class Fighter():
 		self.frame_index = 0
 		self.action = 0#0:idle, 1:attack, 2:hurt, 3:dead
 		self.update_time = pygame.time.get_ticks()
+		self.all_bandits = pygame.sprite.Group()
 		#load idle images
 		temp_list = []
 		for i in range(8):
@@ -229,10 +239,15 @@ class DamageText(pygame.sprite.Sprite):
 
 
 
+	def spawn_bandit(self):
+		fighter = Fighter(self)
+		self.all_bandits.add(fighter)
+
+
+
 damage_text_group = pygame.sprite.Group()
-
-
-knight = Fighter(200, 260, 'Knight', 3, 10, 3)
+soul = Fighter(200, 260, 'Soul', 20, 30, 2)
+knight = Fighter(300, 280, 'Knight', 25, 10, 3)
 bandit1 = Fighter(550, 270, 'Bandit', 20, 6, 1)
 bandit2 = Fighter(700, 270, 'Bandit', 20, 6, 1)
 
@@ -251,18 +266,24 @@ restart_button = button.Button(screen, 330, 120, restart_img, 120, 30)
 run = True
 while run:
 
+
+
 	clock.tick(fps)
 
 	#draw background
 	draw_bg()
 
 	#draw panel
+
 	draw_panel()
 	knight_health_bar.draw(knight.hp)
 	bandit1_health_bar.draw(bandit1.hp)
 	bandit2_health_bar.draw(bandit2.hp)
 
+
 	#draw fighters
+	soul.update()
+	soul.draw()
 	knight.update()
 	knight.draw()
 	for bandit in bandit_list:
@@ -325,6 +346,32 @@ while run:
 		else:
 			game_over = -1
 
+		if soul.alive == True:
+			if current_fighter == 2:
+				action_cooldown += 0
+				if action_cooldown >= action_wait_time:
+					# look for player action
+					# attack
+					if attack == True and target != None:
+						soul.attack(target)
+						current_fighter += 1
+						action_cooldown = 0
+					# potion
+					if potion == True:
+						if soul.potions > 0:
+							# check if the potion would heal the player beyond max health
+							if soul.max_hp - knight.hp > potion_effect:
+								heal_amount = potion_effect
+							else:
+								heal_amount = soul.max_hp - soul.hp
+							soul.hp += heal_amount
+							soul.potions -= 1
+							damage_text = DamageText(soul.rect.centerx, soul.rect.y, str(heal_amount), green)
+							damage_text_group.add(damage_text)
+							current_fighter += 1
+							action_cooldown = 0
+				else:
+					current_fighter += 1
 
 		#enemy action
 		for count, bandit in enumerate(bandit_list):
